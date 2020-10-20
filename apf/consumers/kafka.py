@@ -4,6 +4,7 @@ from confluent_kafka import Consumer
 import fastavro
 import io
 import importlib
+import datetime
 
 
 class KafkaConsumer(GenericConsumer):
@@ -116,19 +117,21 @@ class KafkaConsumer(GenericConsumer):
         `here <https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md>`_
     """
 
-    def __init__(self, config):
+    def __init__(self, config, consumer=None):
         super().__init__(config)
+        # define condition for running tests
+        self.RUNNING = True
         # Disable auto commit
         self.config["PARAMS"]["enable.auto.commit"] = False
         # Creating consumer
-        self.consumer = Consumer(self.config["PARAMS"])
+        self.consumer = consumer or Consumer(self.config["PARAMS"])
         self.logger.info(
             f"Creating consumer for {self.config['PARAMS'].get('bootstrap.servers')}"
         )
         self.dynamic_topic = False
         if self.config.get("TOPICS"):
             self.logger.info(f'Subscribing to {self.config["TOPICS"]}')
-            self.consumer.subscribe(self.config["TOPICS"])
+            self.topics = self.config["TOPICS"]
         elif self.config.get("TOPIC_STRATEGY"):
             self.dynamic_topic = True
             module_name, class_name = self.config["TOPIC_STRATEGY"]["CLASS"].rsplit(
@@ -141,9 +144,16 @@ class KafkaConsumer(GenericConsumer):
             self.topics = self.topic_strategy.get_topics()
             self.logger.info(f'Using {self.config["TOPIC_STRATEGY"]}')
             self.logger.info(f"Subscribing to {self.topics}")
-            self.consumer.subscribe(self.topics)
         else:
             raise Exception("No topics o topic strategy set. ")
+
+        self.offsets = {}
+        if self.config.get("offset.init"):
+            self.offsets["init"] = self.date_str_to_int(self.config["offset.init"])
+        if self.config.get("offset.end"):
+            self.offsets["end"] = self.date_str_to_int(self.config["offset.end"])
+
+        self.consumer.subscribe(self.topics, on_assign=self.on_assign)
 
     def __del__(self):
         self.logger.info("Shutting down Consumer")
@@ -174,6 +184,13 @@ class KafkaConsumer(GenericConsumer):
         self.logger.info(f"Suscribing to {self.topics}")
         self.consumer.subscribe(self.topics)
 
+    def on_assign(self, consumer, partitions):
+        if self.offsets.get("init", False):
+            for partition in partitions:
+                partition.offset = self.offsets["init"]
+            partitions = consumer.offsets_for_times(partitions)
+        consumer.assign(partitions)
+
     def set_basic_config(self, num_messages, timeout):
         if "consume.messages" in self.config:
             num_messages = self.config["consume.messages"]
@@ -185,6 +202,9 @@ class KafkaConsumer(GenericConsumer):
         elif "TIMEOUT" in self.config:
             timeout = self.config["TIMEOUT"]
         return num_messages, timeout
+
+    def date_str_to_int(self, date):
+        return datetime.datetime.strptime(date, "%d/%m/%Y %H:%M:%S")
 
     def consume(self, num_messages=1, timeout=60):
         """
@@ -207,7 +227,7 @@ class KafkaConsumer(GenericConsumer):
         num_messages, timeout = self.set_basic_config(num_messages, timeout)
 
         messages = []
-        while True:
+        while self.RUNNING:
             if self.dynamic_topic:
                 if self._check_topics():
                     self._subscribe_to_new_topics()
