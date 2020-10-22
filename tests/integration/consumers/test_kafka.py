@@ -89,7 +89,7 @@ class TestKafkaConsumer(unittest.TestCase):
 
     def test_batch_consume(self):
         count = 0
-        for msg in self.consumer.consume(num_messages=self.nfiles):
+        for msg in self.consumer.consume(num_messages=self.nfiles, timeout=300):
             count += 1
             self.assertIsInstance(msg, list)
             self.assertEqual(len(msg), self.nfiles)
