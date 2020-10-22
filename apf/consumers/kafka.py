@@ -150,8 +150,12 @@ class KafkaConsumer(GenericConsumer):
         self.offsets = {}
         if self.config.get("offset.init"):
             self.offsets["init"] = self.date_str_to_int(self.config["offset.init"])
+            if self.offsets["init"] == None:
+                del self.offsets["init"]
         if self.config.get("offset.end"):
             self.offsets["end"] = self.date_str_to_int(self.config["offset.end"])
+            if self.offsets["end"] == None:
+                del self.offsets["end"]
         self.consumer.subscribe(self.topics, on_assign=self.on_assign)
 
     def __del__(self):
@@ -203,8 +207,12 @@ class KafkaConsumer(GenericConsumer):
         return num_messages, timeout
 
     def date_str_to_int(self, date_str):
-        dt = datetime.datetime.strptime(date_str, "%d/%m/%Y %H:%M:%S")
-        timestamp = dt.timestamp() * 1000
+        try:
+            dt = datetime.datetime.strptime(date_str, "%d/%m/%Y %H:%M:%S")
+            timestamp = dt.timestamp() * 1000
+        except ValueError:
+            self.logger.exception(f"Wrong date format for offset. {date_str} is not '%d/%m/%Y %H:%M:%S'. Consumer will ignore offsets.")
+            return None
         return timestamp
 
     def consume(self, num_messages=1, timeout=60):
@@ -244,7 +252,6 @@ class KafkaConsumer(GenericConsumer):
                         return
 
                 if message.error():
-                    print(message.error())
                     if message.error().name() == "_PARTITION_EOF":
                         self.logger.info("PARTITION_EOF: No more messages")
                         return

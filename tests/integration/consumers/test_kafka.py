@@ -203,9 +203,7 @@ class TestKafkaConsumerWithOffset(unittest.TestCase):
                 start = datetime.datetime.fromtimestamp(msg.timestamp()[1] / 1000)
             if self.nfiles - 1 == i:
                 end = datetime.datetime.fromtimestamp(msg.timestamp()[1] / 1000)
-        return start.strftime("%d/%m/%Y %H:%M:%S"), end.strftime(
-            "%d/%m/%Y %H:%M:%S"
-        )
+        return start.strftime("%d/%m/%Y %H:%M:%S"), end.strftime("%d/%m/%Y %H:%M:%S")
 
     def test_connection(self):
         self.consumer.consumer.poll()
@@ -214,6 +212,26 @@ class TestKafkaConsumerWithOffset(unittest.TestCase):
             self.assertIn(topic, topics)
         for topic in self.consumer.consumer.assignment():
             self.assertIn(topic.topic, self.topics)
+
+    def test_consume_invalid_date(self):
+        self.consumer.consumer.close()
+        del self.consumer
+        self.config = {
+            "TOPICS": self.topics,
+            "PARAMS": {
+                "bootstrap.servers": "localhost:9094",
+                "group.id": "TestKafkaConsumerWithOffsetsInvalidDate",
+                "auto.offset.reset": "beginning",
+                "enable.partition.eof": True,
+            },
+            "offset.init": "wrong_date",
+            "offset.end": "wrong_date",
+        }
+        self.consumer = KafkaConsumer(self.config)
+        count = 0
+        for msg in self.consumer.consume():
+            count += 1
+        self.assertEqual(count, self.nfiles)
 
     def test_consume(self):
         # check that only half messages have timestamp after
