@@ -102,19 +102,18 @@ class TestKafkaConsumer(GenericConsumerTest, unittest.TestCase):
                 "group.id": "test",
             },
             "offset.init": "some_datetime",
-            "offset.end": "some_other_datetime",
+            "offset.end": "01/01/2000 00:00:00",
         }
         from apf.consumers.kafka import Consumer
 
         mock_consumer = mock.create_autospec(Consumer)
-
-        def side_effect(args, on_assign):
-            on_assign(mock_consumer, [])
-
-        mock_consumer.subscribe.side_effect = side_effect
+        mock_get_date_int.return_value = "start_date"
         self.consumer = self.component(config, consumer=mock_consumer)
         mock_get_date_int.assert_called()
-        mock_consumer.offsets_for_times.assert_called()
+        self.assertEqual(self.consumer.offsets["init"], "start_date")
+        self.assertEqual(
+            self.consumer.offsets["end"], datetime.datetime(2000, 1, 1, 0, 0)
+        )
 
     @mock.patch.object(KafkaConsumer, "date_str_to_int")
     def test_on_assign_with_offsets(self, mock_date_str_to_int):
@@ -125,12 +124,13 @@ class TestKafkaConsumer(GenericConsumerTest, unittest.TestCase):
                 "group.id": "test",
             },
             "offset.init": "some_datetime",
-            "offset.end": "some_other_datetime",
+            "offset.end": "01/01/2000 00:00:00",
         }
         mock_consumer = mock.create_autospec(Consumer)
         self.consumer = self.component(config, consumer=mock_consumer)
         self.consumer.on_assign(mock_consumer, [mock.Mock()])
         mock_consumer.offsets_for_times.assert_called()
+
 
 class TestKafkaConsumerDynamicTopic(unittest.TestCase):
     def setUp(self):

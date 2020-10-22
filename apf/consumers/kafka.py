@@ -152,7 +152,6 @@ class KafkaConsumer(GenericConsumer):
             self.offsets["init"] = self.date_str_to_int(self.config["offset.init"])
         if self.config.get("offset.end"):
             self.offsets["end"] = self.date_str_to_int(self.config["offset.end"])
-
         self.consumer.subscribe(self.topics, on_assign=self.on_assign)
 
     def __del__(self):
@@ -182,14 +181,14 @@ class KafkaConsumer(GenericConsumer):
         self.topics = self.topic_strategy.get_topics()
         self.consumer.unsubscribe()
         self.logger.info(f"Suscribing to {self.topics}")
-        self.consumer.subscribe(self.topics)
+        self.consumer.subscribe(self.topics, on_assign=self.on_assign)
 
     def on_assign(self, consumer, partitions):
         if self.offsets.get("init", False):
             for partition in partitions:
-                partition.offset = self.offsets["init"]
+                partition.offset = int(self.offsets["init"])
             partitions = consumer.offsets_for_times(partitions)
-        consumer.assign(partitions)
+            consumer.assign(partitions)
 
     def set_basic_config(self, num_messages, timeout):
         if "consume.messages" in self.config:
@@ -203,8 +202,10 @@ class KafkaConsumer(GenericConsumer):
             timeout = self.config["TIMEOUT"]
         return num_messages, timeout
 
-    def date_str_to_int(self, date):
-        return datetime.datetime.strptime(date, "%d/%m/%Y %H:%M:%S")
+    def date_str_to_int(self, date_str):
+        dt = datetime.datetime.strptime(date_str, "%d/%m/%Y %H:%M:%S")
+        timestamp = dt.timestamp() * 1000
+        return timestamp
 
     def consume(self, num_messages=1, timeout=60):
         """
@@ -238,7 +239,12 @@ class KafkaConsumer(GenericConsumer):
 
             deserialized = []
             for message in messages:
+                if self.offsets.get("end", False):
+                    if message.timestamp()[1] > self.offsets["end"]:
+                        return
+
                 if message.error():
+                    print(message.error())
                     if message.error().name() == "_PARTITION_EOF":
                         self.logger.info("PARTITION_EOF: No more messages")
                         return
