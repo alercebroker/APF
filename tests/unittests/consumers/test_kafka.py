@@ -101,19 +101,17 @@ class TestKafkaConsumer(GenericConsumerTest, unittest.TestCase):
                 "bootstrap.servers": "localhost:9092",
                 "group.id": "test",
             },
-            "offset.init": "some_datetime",
-            "offset.end": "01/01/2000 00:00:00",
+            "offset.init": "start_date",
+            "offset.end": "end_date",
         }
         from apf.consumers.kafka import Consumer
 
         mock_consumer = mock.create_autospec(Consumer)
-        mock_get_date_int.return_value = "start_date"
+        mock_get_date_int.return_value = "date_int"
         self.consumer = self.component(config, consumer=mock_consumer)
         mock_get_date_int.assert_called()
-        self.assertEqual(self.consumer.offsets["init"], "start_date")
-        self.assertEqual(
-            self.consumer.offsets["end"], datetime.datetime(2000, 1, 1, 0, 0)
-        )
+        self.assertEqual(self.consumer.offsets["init"], "date_int")
+        self.assertEqual(self.consumer.offsets["end"], "date_int")
 
     @mock.patch.object(KafkaConsumer, "date_str_to_int")
     def test_on_assign_with_offsets(self, mock_date_str_to_int):
