@@ -25,10 +25,17 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest numpy Cython
+          pip install pytest numpy Cython coverage
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       - name: Start Docker containers for Zookeeper and Kafka 
         run: docker-compose -f tests/kafka_environment/docker-compose.yml up -d
       - name: Test with pytest
         run: |
-          python -m pytest -x -s tests/integration/
+          coverage run --source apf -m pytest -x -s tests/integration/
+          coverage xml
+      - name: Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./coverage.xml
+          flags: integration
