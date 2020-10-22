@@ -29,6 +29,11 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       - name: Start Docker containers for Zookeeper and Kafka 
         run: docker-compose -f tests/kafka_environment/docker-compose.yml up -d
+
+      - name: Wait for kafka port
+        run: |
+          git clone https://github.com/vishnubob/wait-for-it.git helper
+          helper/wait-for-it.sh -h localhost -p 9094 -t 60
       - name: Test with pytest
         run: |
           coverage run --source apf -m pytest -x -s tests/integration/
