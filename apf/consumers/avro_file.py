@@ -23,12 +23,15 @@ class AVROFileConsumer(GenericConsumer):
         AVRO files Directory path location
 
     """
+
     def __init__(self, config):
         super().__init__(config)
 
     def consume(self):
         files = glob.glob(os.path.join(self.config["DIRECTORY_PATH"], "*.avro"))
         files.sort()
+        if len(files) == 0:
+            raise (f"No files found in {self.config['DIRECTORY_PATH']}")
 
         if "consume.messages" in self.config:
             num_messages = self.config["consume.messages"]
