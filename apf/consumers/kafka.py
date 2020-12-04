@@ -117,12 +117,14 @@ class KafkaConsumer(GenericConsumer):
         `here <https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md>`_
     """
 
-    def __init__(self, config):
+    def __init__(self, config, consumer=None):
         super().__init__(config)
+        # Define condition for running tests
+        self.RUNNING = True
         # Disable auto commit
         self.config["PARAMS"]["enable.auto.commit"] = False
         # Creating consumer
-        self.consumer = Consumer(self.config["PARAMS"])
+        self.consumer = consumer or Consumer(self.config["PARAMS"])
         self.logger.info(
             f"Creating consumer for {self.config['PARAMS'].get('bootstrap.servers')}"
         )
@@ -208,7 +210,8 @@ class KafkaConsumer(GenericConsumer):
         num_messages, timeout = self.set_basic_config(num_messages, timeout)
 
         messages = []
-        while True:
+        while self.RUNNING:
+            print("consume")
             if self.dynamic_topic:
                 if self._check_topics():
                     self._subscribe_to_new_topics()
