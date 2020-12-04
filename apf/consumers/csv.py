@@ -31,6 +31,7 @@ class CSVConsumer(GenericConsumer):
         (reference `here <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html>`_)
 
     """
+
     def __init__(self, config):
         super().__init__(config)
         path = self.config.get("FILE_PATH", None)
@@ -38,7 +39,22 @@ class CSVConsumer(GenericConsumer):
             raise Exception("FILE_PATH variable not set")
 
     def consume(self):
+        if "consume.messages" in self.config:
+            num_messages = self.config["consume.messages"]
+        elif "NUM_MESSAGES" in self.config:
+            num_messages = self.config["NUM_MESSAGES"]
+        else:
+            num_messages = 1
+
+        msgs = []
         df = pd.read_csv(self.config["FILE_PATH"], **self.config.get("OTHER_ARGS", {}))
         self.len = len(df)
         for index, row in df.iterrows():
-            yield row.to_dict()
+            if num_messages == 1:
+                yield row.to_dict()
+            else:
+                msgs.append(row.to_dict())
+                if len(msgs) == num_messages:
+                    return_msgs = msgs.copy()
+                    msjs = []
+                    yield return_msgs
