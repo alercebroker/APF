@@ -2,11 +2,12 @@ from abc import abstractmethod, ABCMeta
 import logging
 
 
-class GenericConsumer():
+class GenericConsumer:
     """Generic Consumer for Alert Processing Framework.
 
     Parameters are passed through *config* as a :py:class:`dict` of params.
     """
+
     __metaclass__ = ABCMeta
 
     def __init__(self, config=None):
@@ -23,7 +24,10 @@ class GenericConsumer():
         dict
             Dictionary like message of an alert.
         """
-        yield {}
+        if "consume.messages" in self.config:
+            yield []
+        else:
+            yield {}
 
     def commit(self):
         """Post consume processing.

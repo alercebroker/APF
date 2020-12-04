@@ -13,11 +13,8 @@ class AVROFileConsumerTest(GenericConsumerTest, unittest.TestCase):
     params = {"DIRECTORY_PATH": os.path.join(EXAMPLES_PATH, "avro_test")}
     __test__ = True
 
-    def test_batch(self):
-        params = self.params
-        params["consume.messages"] = 6
-        consumer = self.component(params)
-        for msg in consumer.consume():
-            self.assertIsInstance(msg, list)
-            self.assertEqual(len(msg), params["consume.messages"])
-            consumer.commit()
+    def test_no_files(self):
+        with self.assertRaises(Exception):
+            consumer = self.component({"DIRECTORY_PATH": "false_path"})
+            for msg in consumer.consume():
+                pass
