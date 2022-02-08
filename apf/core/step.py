@@ -1,6 +1,7 @@
 from abc import abstractmethod
 
 from apf.consumers import GenericConsumer
+from apf.producers import GenericProducer
 from apf.core import get_class
 
 import logging
@@ -28,26 +29,33 @@ class GenericStep:
         Additional parameters for the step.
     """
 
-    def __init__(self, consumer=None, level=logging.INFO, config=None, **step_args):
+    def __init__(
+        self,
+        consumer=None,
+        producer=None,
+        step_type="simple",
+        level=logging.INFO,
+        config=None,
+        **step_args,
+    ):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.info(f"Creating {self.__class__.__name__}")
-        if config:
-            self.config = config
-        else:
-            self.config = {}
+        self.config = config or {}
         self.consumer = GenericConsumer() if consumer is None else consumer
+        self.producer = GenericProducer() if producer in None else producer
         self.commit = self.config.get("COMMIT", True)
         self.metrics = {}
         self.metrics_sender = None
         self.extra_metrics = []
-
         if self.config.get("METRICS_CONFIG"):
             Metrics = get_class(
                 self.config["METRICS_CONFIG"].get(
                     "CLASS", "apf.metrics.KafkaMetricsProducer"
                 )
             )
-            self.metrics_sender = Metrics(self.config["METRICS_CONFIG"]["PARAMS"])
+            self.metrics_sender = Metrics(
+                self.config["METRICS_CONFIG"]["PARAMS"]
+            )
             self.extra_metrics = self.config["METRICS_CONFIG"].get(
                 "EXTRA_METRICS", ["candid"]
             )
@@ -96,6 +104,18 @@ class GenericStep:
             metrics["source"] = self.__class__.__name__
             self.metrics_sender.send_metrics(metrics)
 
+    def _pre_consume(self):
+        self.pre_consume()
+
+    def pre_consume(self):
+        pass
+
+    def _pre_execute(self, message):
+        self.pre_execute(message)
+
+    def pre_execute(self, message):
+        pass
+
     @abstractmethod
     def execute(self, message):
         """Execute the logic of the step. This method has to be implemented by
@@ -106,6 +126,21 @@ class GenericStep:
         message : dict, list
             Dict-like message to be processed or list of dict-like messages
         """
+        raise NotImplementedError()
+
+    def _post_execute(self, result):
+        self.post_execute(result)
+
+    def post_execute(self, result):
+        pass
+
+    def _produce(self, result):
+        self.producer.produce(result)
+
+    def _post_produce(self):
+        self.post_produce()
+
+    def post_produce(self):
         pass
 
     def get_value(self, message, params):
@@ -141,7 +176,7 @@ class GenericStep:
             val = message.get(params["key"])
             if "format" in params:
                 if not callable(params["format"]):
-                    raise ValueError("'format' parameter must be a calleable.")
+                    raise ValueError("'format' parameter must be a callable.")
                 else:
                     val = params["format"](val)
             if "alias" in params:
@@ -201,7 +236,8 @@ class GenericStep:
                 datetime.timezone.utc
             )
             time_difference = (
-                self.metrics["timestamp_sent"] - self.metrics["timestamp_received"]
+                self.metrics["timestamp_sent"]
+                - self.metrics["timestamp_received"]
             )
             self.metrics["execution_time"] = time_difference.total_seconds()
             if self.extra_metrics:
