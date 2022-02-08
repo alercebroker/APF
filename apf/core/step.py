@@ -41,8 +41,9 @@ class GenericStep:
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.info(f"Creating {self.__class__.__name__}")
         self.config = config or {}
-        self.consumer = self._get_consumer()()
-        self.producer = self._get_producer()()
+        self.consumer = self._get_consumer()(self.config["CONSUMER_CONFIG"])
+        producer_config = self.config.get("PRODUCER_CONFIG") or {}
+        self.producer = self._get_producer()(producer_config)
         self.step_type = self.config.get("STEP_TYPE", "simple")
         if self.step_type not in step_types:
             raise Exception(f"Step type can only be one of {step_types}. You provided {self.step_type}")
