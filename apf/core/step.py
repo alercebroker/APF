@@ -3,6 +3,7 @@ from abc import abstractmethod
 from apf.consumers import GenericConsumer
 from apf.producers import GenericProducer
 from apf.core import get_class
+from apf.consumers import KafkaConsumer
 
 import logging
 import datetime
@@ -13,8 +14,9 @@ class GenericStep:
 
     Parameters
     ----------
-    consumer : :class:`GenericConsumer`
-        An object of type GenericConsumer.
+    config : dict
+        Dictionary containing configuration for the various components of the step
+
     level : logging.level
         Logging level, has to be a logging.LEVEL constant.
 
@@ -31,18 +33,19 @@ class GenericStep:
 
     def __init__(
         self,
-        consumer=None,
-        producer=None,
-        step_type="simple",
-        level=logging.INFO,
         config=None,
+        level=logging.INFO,
         **step_args,
     ):
+        step_types = ["simple", "composite", "component"]
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.info(f"Creating {self.__class__.__name__}")
         self.config = config or {}
-        self.consumer = GenericConsumer() if consumer is None else consumer
-        self.producer = GenericProducer() if producer in None else producer
+        self.consumer = self._get_consumer()()
+        self.producer = self._get_producer()()
+        self.step_type = self.config.get("STEP_TYPE", "simple")
+        if self.step_type not in step_types:
+            raise Exception(f"Step type can only be one of {step_types}. You provided {self.step_type}")
         self.commit = self.config.get("COMMIT", True)
         self.metrics = {}
         self.metrics_sender = None
@@ -59,6 +62,26 @@ class GenericStep:
             self.extra_metrics = self.config["METRICS_CONFIG"].get(
                 "EXTRA_METRICS", ["candid"]
             )
+
+    def _get_consumer(self):
+        if self.config.get("CONSUMER_CONFIG"):
+            consumer_config = self.config["CONSUMER_CONFIG"]:
+            if "CLASS" in consumer_config
+                Consumer = get_class(consumer_config["CLASS"])
+            else:
+                Consumer = KafkaConsumer
+            return Consumer
+        raise Exception("Could not find CONSUMER_CONFIG in the step config")
+
+    def _get_producer(self):
+        if self.config.get("PRODUCER_CONFIG"):
+            producer_config = self.config["PRODUCER_CONFIG"]
+            if "CLASS" in producer_config:
+                Consumer = get_class(producer_config["CLASS"])
+            else:
+                Consumer = GenericProducer
+            return Consumer
+        return GenericProducer
 
     def send_metrics(self, **metrics):
         """Send Metrics with a metrics producer.
@@ -105,13 +128,20 @@ class GenericStep:
             self.metrics_sender.send_metrics(metrics)
 
     def _pre_consume(self):
+        self.logger.info("Starting step. Begin processing")
         self.pre_consume()
 
     def pre_consume(self):
         pass
 
-    def _pre_execute(self, message):
-        self.pre_execute(message)
+    def _pre_execute(self):
+        self.logger.debug("Received message. Begin preprocessing")
+        self.metrics["timestamp_received"] = datetime.datetime.now(
+            datetime.timezone.utc
+        )
+        if self.step_type is "component" and self.commit:
+            self.consumer.commit()
+        self.pre_execute(self.message)
 
     def pre_execute(self, message):
         pass
@@ -129,15 +159,34 @@ class GenericStep:
         raise NotImplementedError()
 
     def _post_execute(self, result):
-        self.post_execute(result)
+        self.logger.debug("Processed message. Begin post processing")
+        final_result = self.post_execute(result)
+        if self.commit:
+            self.consumer.commit()
+        self.metrics["timestamp_sent"] = datetime.datetime.now(
+            datetime.timezone.utc
+        )
+        time_difference = (
+            self.metrics["timestamp_sent"]
+            - self.metrics["timestamp_received"]
+        )
+        self.metrics["execution_time"] = time_difference.total_seconds()
+        if self.extra_metrics:
+            extra_metrics = self.get_extra_metrics(self.message)
+            self.metrics.update(extra_metrics)
+        self.send_metrics(**self.metrics)
+        return final_result
 
     def post_execute(self, result):
         pass
 
-    def _produce(self, result):
-        self.producer.produce(result)
+    def _pre_produce(self, result):
+        self.logger.debug("Finished all processing. Begin message production")
+        message_to_produce = self.pre_produce(result)
+        return message_to_produce
 
     def _post_produce(self):
+        self.logger.debug("Message produced. Begin post production")
         self.post_produce()
 
     def post_produce(self):
@@ -225,22 +274,19 @@ class GenericStep:
 
     def start(self):
         """Start running the step."""
+        self._pre_consume()
         for self.message in self.consumer.consume():
-            self.metrics["timestamp_received"] = datetime.datetime.now(
-                datetime.timezone.utc
-            )
-            self.execute(self.message)
-            if self.commit:
-                self.consumer.commit()
-            self.metrics["timestamp_sent"] = datetime.datetime.now(
-                datetime.timezone.utc
-            )
-            time_difference = (
-                self.metrics["timestamp_sent"]
-                - self.metrics["timestamp_received"]
-            )
-            self.metrics["execution_time"] = time_difference.total_seconds()
-            if self.extra_metrics:
-                extra_metrics = self.get_extra_metrics(self.message)
-                self.metrics.update(extra_metrics)
-            self.send_metrics(**self.metrics)
+            self._pre_execute()
+            result = self.execute(self.message)
+            result = self._post_execute(result)
+            result = self._pre_produce(result)
+            self.producer.produce(result)
+            self._post_produce()
+        self._tear_down()
+
+    def _tear_down(self):
+        self.logger.info("Processing finished. No more messages. Begin tear down.")
+        self.tear_down()
+
+    def tear_down(self):
+        pass
