@@ -2,8 +2,9 @@ from abc import ABCMeta
 import logging
 
 
-class GenericProducer():
+class GenericProducer:
     """Generic Producer for Alert Processing Framework."""
+
     __metaclass__ = ABCMeta
 
     def __init__(self, config=None):
@@ -17,6 +18,6 @@ class GenericProducer():
         Parameters
         ----------
         message : dict-like
-            Message to be sended.
+            Message to be sent.
         """
         pass
