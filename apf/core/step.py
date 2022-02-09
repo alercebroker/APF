@@ -134,6 +134,7 @@ class GenericStep:
         self.logger.info("Starting step. Begin processing")
         self.pre_consume()
 
+    @abstractmethod
     def pre_consume(self):
         pass
 
@@ -146,6 +147,7 @@ class GenericStep:
             self.consumer.commit()
         self.pre_execute(self.message)
 
+    @abstractmethod
     def pre_execute(self, message):
         pass
 
@@ -159,7 +161,7 @@ class GenericStep:
         message : dict, list
             Dict-like message to be processed or list of dict-like messages
         """
-        raise NotImplementedError()
+        pass
 
     def _post_execute(self, result):
         self.logger.debug("Processed message. Begin post processing")
@@ -179,6 +181,7 @@ class GenericStep:
         self.send_metrics(**self.metrics)
         return final_result
 
+    @abstractmethod
     def post_execute(self, result):
         pass
 
@@ -187,10 +190,15 @@ class GenericStep:
         message_to_produce = self.pre_produce(result)
         return message_to_produce
 
+    @abstractmethod
+    def pre_produce(self, result):
+        pass
+
     def _post_produce(self):
         self.logger.debug("Message produced. Begin post production")
         self.post_produce()
 
+    @abstractmethod
     def post_produce(self):
         pass
 
