@@ -46,7 +46,9 @@ class GenericStep:
         self.producer = self._get_producer()(producer_config)
         self.step_type = self.config.get("STEP_TYPE", "simple")
         if self.step_type not in step_types:
-            raise Exception(f"Step type can only be one of {step_types}. You provided {self.step_type}")
+            raise Exception(
+                f"Step type can only be one of {step_types}. You provided {self.step_type}"
+            )
         self.commit = self.config.get("COMMIT", True)
         self.metrics = {}
         self.metrics_sender = None
@@ -66,8 +68,8 @@ class GenericStep:
 
     def _get_consumer(self):
         if self.config.get("CONSUMER_CONFIG"):
-            consumer_config = self.config["CONSUMER_CONFIG"]:
-            if "CLASS" in consumer_config
+            consumer_config = self.config["CONSUMER_CONFIG"]
+            if "CLASS" in consumer_config:
                 Consumer = get_class(consumer_config["CLASS"])
             else:
                 Consumer = KafkaConsumer
@@ -168,8 +170,7 @@ class GenericStep:
             datetime.timezone.utc
         )
         time_difference = (
-            self.metrics["timestamp_sent"]
-            - self.metrics["timestamp_received"]
+            self.metrics["timestamp_sent"] - self.metrics["timestamp_received"]
         )
         self.metrics["execution_time"] = time_difference.total_seconds()
         if self.extra_metrics:
@@ -286,7 +287,9 @@ class GenericStep:
         self._tear_down()
 
     def _tear_down(self):
-        self.logger.info("Processing finished. No more messages. Begin tear down.")
+        self.logger.info(
+            "Processing finished. No more messages. Begin tear down."
+        )
         self.tear_down()
 
     def tear_down(self):
