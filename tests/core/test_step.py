@@ -8,7 +8,11 @@ def test_get_single_extra_metrics():
             "CLASS": "apf.metrics.GenericMetricsProducer",
             "PARAMS": {},
             "EXTRA_METRICS": ["oid", "candid"],
-        }
+        },
+        "CONSUMER_CONFIG": {
+            "PARAMS": {},
+            "CLASS": "apf.consumers.generic.GenericConsumer",
+        },
     }
     message = {"oid": "TEST", "candid": 1}
     gs = GenericStep(config=config)
@@ -33,7 +37,11 @@ def test_get_batch_extra_metrics():
                     "format": lambda x: str(x),
                 },
             ],
-        }
+        },
+        "CONSUMER_CONFIG": {
+            "PARAMS": {},
+            "CLASS": "apf.consumers.generic.GenericConsumer",
+        },
     }
     message = [{"oid": "TEST", "candid": 1}, {"oid": "TEST2"}, {"candid": 3}]
     gs = GenericStep(config=config)
@@ -50,7 +58,11 @@ def test_get_value():
             "CLASS": "apf.metrics.GenericMetricsProducer",
             "PARAMS": {},
             "EXTRA_METRICS": ["oid", "candid"],
-        }
+        },
+        "CONSUMER_CONFIG": {
+            "PARAMS": {},
+            "CLASS": "apf.consumers.generic.GenericConsumer",
+        },
     }
     message = {"oid": "TEST", "candid": 1}
     gs = GenericStep(config=config)
