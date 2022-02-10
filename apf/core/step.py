@@ -143,7 +143,7 @@ class GenericStep:
         self.metrics["timestamp_received"] = datetime.datetime.now(
             datetime.timezone.utc
         )
-        if self.step_type is "component" and self.commit:
+        if self.step_type == "component" and self.commit:
             self.consumer.commit()
         self.pre_execute(self.message)
 
