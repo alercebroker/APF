@@ -35,7 +35,7 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics --exclude=templates,tests,__init__.py
     - name: Get coverage and test with pytest
       run: |
-        coverage run --omit="./apf/core/templates*" -m pytest -x
+        coverage run --source="./apf" --omit="./apf/core/templates*" -m pytest -x
         coverage xml
     - name: Codecov
       uses: codecov/codecov-action@v2
