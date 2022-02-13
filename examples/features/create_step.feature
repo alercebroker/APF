@@ -8,15 +8,22 @@ Feature: Create a step
   Scenario: Create a simple step
     When user calls the new-step command
     Then a new directory is created with the step boilerplate
+    And the config has type simple
 
   @fixture.tmpdir
   Scenario: Create a component step
-    When user calls the new-step command with "component" argument
+    When user calls the new-step command with component argument
     Then a new directory is created with the step boilerplate
-    And the config has type "component"
+    And the config has type component
 
   @fixture.tmpdir
   Scenario: Create a composite step
-    When user calls the new-step command with "composite" argument
+    When user calls the new-step command with composite argument
     Then a new directory is created with the step boilerplate
-    And the config has type "composite"
+    And the config has type composite
+
+  @fixture.tmpdir
+  Scenario: Create a non-available step
+    When user calls the new-step command with something argument
+    Then a new directory is created with the step boilerplate
+    But the step is not able to run
