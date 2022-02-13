@@ -19,7 +19,8 @@ def _validate_steps(steps):
 
 @cli.command()
 @click.argument("name")
-def new_step(name):
+@click.option("--step-type", default="simple")
+def new_step(name, step_type):
     import re
 
     BASE = os.getcwd()
@@ -75,7 +76,7 @@ def new_step(name):
 
     settings_template = route.get_template("step/settings.py")
     with open(os.path.join(output_path, "settings.py"), "w") as f:
-        f.write(settings_template.render(step_name=name))
+        f.write(settings_template.render(step_name=name, step_type=step_type))
 
 
 @cli.command()
