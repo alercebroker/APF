@@ -1,6 +1,5 @@
 from abc import abstractmethod
 
-from apf.consumers import GenericConsumer
 from apf.producers import GenericProducer
 from apf.core import get_class
 from apf.consumers import KafkaConsumer
@@ -299,6 +298,8 @@ class GenericStep:
             "Processing finished. No more messages. Begin tear down."
         )
         self.tear_down()
+        f = open("__SUCCESS__", "w")
+        f.close()
 
     def tear_down(self):
         pass
