@@ -7,6 +7,7 @@ PACKAGE_PATH = os.path.abspath(os.path.join(SCRIPT_PATH,".."))
 
 sys.path.append(PACKAGE_PATH)
 from settings import *
+from {{package_name}} import {{class_name}}
 
 level = logging.INFO
 if 'LOGGING_DEBUG' in locals():
@@ -18,6 +19,9 @@ logging.basicConfig(level=level,
                     datefmt='%Y-%m-%d %H:%M:%S',)
 
 
-from {{package_name}} import {{class_name}}
-step = {{class_name}}(config=STEP_CONFIG,level=level)
-step.start()
+def main():
+    step = {{class_name}}(config=STEP_CONFIG,level=level)
+    step.start()
+
+if __name__ == "__main__":
+    main()
