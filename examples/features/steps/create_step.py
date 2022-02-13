@@ -18,3 +18,15 @@ def step_check_dir(context):
     step_path = Path(dir_list[0] / "example")
     dir_contents = [x for x in step_path.iterdir()]
     assert len(dir_contents) > 0
+
+
+@when("user calls the new-step command with {step_type} argument")
+def step_impl(context, step_type):
+    runner = CliRunner()
+    with runner.isolated_filesystem(context.tmp_dir):
+        runner.invoke(cli, ["new-step", "example", f"--step-type={step_type}"])
+
+
+@then("the config has type {step_type}")
+def step_impl(context, step_type):
+    raise NotImplementedError()
