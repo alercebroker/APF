@@ -7,6 +7,7 @@ PACKAGE_PATH = os.path.abspath(os.path.join(SCRIPT_PATH,".."))
 
 sys.path.append(PACKAGE_PATH)
 from settings import *
+from {{package_name}} import {{class_name}}
 
 level = logging.INFO
 if 'LOGGING_DEBUG' in locals():
@@ -18,14 +19,9 @@ logging.basicConfig(level=level,
                     datefmt='%Y-%m-%d %H:%M:%S',)
 
 
-from {{package_name}} import {{class_name}}
-from apf.core import get_class
-if "CLASS" in CONSUMER_CONFIG:
-    Consumer = get_class(CONSUMER_CONFIG["CLASS"])
-else:
-    from apf.consumers import KafkaConsumer as Consumer
+def main():
+    step = {{class_name}}(config=STEP_CONFIG,level=level)
+    step.start()
 
-consumer = Consumer(config=CONSUMER_CONFIG)
-
-step = {{class_name}}(consumer,config=STEP_CONFIG,level=level)
-step.start()
+if __name__ == "__main__":
+    main()

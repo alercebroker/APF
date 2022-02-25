@@ -2,8 +2,8 @@ from apf.core.step import GenericStep
 import logging
 
 
-class {{step_name}}(GenericStep):
-    """{{step_name}} Description
+class SimpleExample01(GenericStep):
+    """SimpleExample01 Description
 
     Parameters
     ----------
@@ -13,10 +13,11 @@ class {{step_name}}(GenericStep):
         Other args passed to step (DB connections, API requests, etc.)
 
     """
-    def __init__(self,config = None,level = logging.INFO,**step_args):
+
+    def __init__(self, config=None, level=logging.INFO, **step_args):
         super().__init__(config=config, level=level)
 
-    def execute(self,message):
+    def execute(self, message):
         ################################
         #   Here comes the Step Logic  #
         ################################
