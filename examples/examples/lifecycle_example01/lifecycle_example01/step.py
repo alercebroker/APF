@@ -1,8 +1,8 @@
-from apf.core.step import SimpleStep
+from apf.core.step import SimpleStep as Step
 import logging
 
 
-class LifecycleExample01(SimpleStep):
+class LifecycleExample01(Step):
     """LifecycleExample01 Description
 
     Parameters
