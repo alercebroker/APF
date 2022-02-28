@@ -1,6 +1,7 @@
 from behave import when, then
 from click.testing import CliRunner
 from apf.core.management.helpers import cli
+from apf.core.step import SimpleStep, ComponentStep, CompositeStep
 from pathlib import Path
 import importlib.util
 
@@ -9,7 +10,8 @@ import importlib.util
 def step_new_step(context):
     runner = CliRunner()
     with runner.isolated_filesystem(context.tmp_dir):
-        runner.invoke(cli, ["new-step", "example"])
+        result = runner.invoke(cli, ["new-step", "example"])
+        context.runner_result = result
 
 
 @then("a new directory is created with the step boilerplate")
@@ -19,41 +21,44 @@ def step_check_dir(context):
     step_path = Path(dir_list[0] / "example")
     dir_contents = [x for x in step_path.iterdir()]
     assert len(dir_contents) > 0
+    assert context.runner_result.exit_code == 0
 
 
 @when("user calls the new-step command with {step_type} argument")
 def step_call_new_step(context, step_type):
     runner = CliRunner()
     with runner.isolated_filesystem(context.tmp_dir):
-        runner.invoke(cli, ["new-step", f"--step-type={step_type}", "example"])
+        result = runner.invoke(
+            cli, ["new-step", f"--step-type={step_type}", "example"]
+        )
+        context.runner_result = result
 
 
-@then("the config has type {step_type}")
+@then("the created step has type {step_type}")
 def step_check_step_type(context, step_type):
     p = Path(context.tmp_dir)
     dir_list = [x for x in p.iterdir() if x.is_dir()]
     step_path = Path(dir_list[0] / "example")
     spec = importlib.util.spec_from_file_location(
-        str(step_path),
-        step_path / "settings.py",
-    )
-    settings = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(settings)
-    assert settings.STEP_CONFIG.get("STEP_TYPE") == step_type
-
-
-@then("the step is not able to run")
-def step_step_not_able_to_run(context):
-    p = Path(context.tmp_dir)
-    dir_list = [x for x in p.iterdir() if x.is_dir()]
-    step_path = Path(dir_list[0] / "example")
-    spec = importlib.util.spec_from_file_location(
-        "step",
-        step_path / "scripts/run_step.py",
+        "example",
+        step_path / "example/step.py",
     )
     step = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(step)
-    try:
-        step = step.Example(config=step.STEP_CONFIG)
-    except Exception as e:
-        assert "Step type can only be one of" in str(e)
+    step_map = {
+        "composite": CompositeStep,
+        "component": ComponentStep,
+        "simple": SimpleStep,
+    }
+    with open(step_path / "example/step.py") as f:
+        print(f.read())
+    assert issubclass(
+        step.Example,
+        step_map[step_type],
+    )
+
+
+@then("step can't be created")
+def step_step_not_created(context):
+    assert context.runner_result.exit_code != 0
+    print(context.runner_result)

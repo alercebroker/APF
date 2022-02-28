@@ -32,22 +32,16 @@ class GenericStep:
 
     def __init__(
         self,
-        config=None,
+        config={},
         level=logging.INFO,
         **step_args,
     ):
-        step_types = ["simple", "composite", "component"]
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.info(f"Creating {self.__class__.__name__}")
-        self.config = config or {}
-        self.consumer = self._get_consumer()(self.config["CONSUMER_CONFIG"])
+        self.config = config
+        self.consumer = self.__get_consumer()(self.config["CONSUMER_CONFIG"])
         producer_config = self.config.get("PRODUCER_CONFIG") or {}
-        self.producer = self._get_producer()(producer_config)
-        self.step_type = self.config.get("STEP_TYPE", "simple")
-        if self.step_type not in step_types:
-            raise Exception(
-                f"Step type can only be one of {step_types}. You provided {self.step_type}"
-            )
+        self.producer = self.__get_producer()(producer_config)
         self.commit = self.config.get("COMMIT", True)
         self.metrics = {}
         self.metrics_sender = None
@@ -65,7 +59,7 @@ class GenericStep:
                 "EXTRA_METRICS", ["candid"]
             )
 
-    def _get_consumer(self):
+    def __get_consumer(self):
         if self.config.get("CONSUMER_CONFIG"):
             consumer_config = self.config["CONSUMER_CONFIG"]
             if "CLASS" in consumer_config:
@@ -75,7 +69,7 @@ class GenericStep:
             return Consumer
         raise Exception("Could not find CONSUMER_CONFIG in the step config")
 
-    def _get_producer(self):
+    def __get_producer(self):
         if self.config.get("PRODUCER_CONFIG"):
             producer_config = self.config["PRODUCER_CONFIG"]
             if "CLASS" in producer_config:
@@ -129,7 +123,7 @@ class GenericStep:
             metrics["source"] = self.__class__.__name__
             self.metrics_sender.send_metrics(metrics)
 
-    def _pre_consume(self):
+    def __pre_consume(self):
         self.logger.info("Starting step. Begin processing")
         self.pre_consume()
 
@@ -137,12 +131,12 @@ class GenericStep:
     def pre_consume(self):
         pass
 
-    def _pre_execute(self):
+    def __pre_execute(self):
         self.logger.debug("Received message. Begin preprocessing")
         self.metrics["timestamp_received"] = datetime.datetime.now(
             datetime.timezone.utc
         )
-        if self.step_type == "component" and self.commit:
+        if self.step_type == "component":
             self.consumer.commit()
         self.pre_execute(self.message)
 
@@ -162,10 +156,10 @@ class GenericStep:
         """
         pass
 
-    def _post_execute(self, result):
+    def __post_execute(self, result):
         self.logger.debug("Processed message. Begin post processing")
         final_result = self.post_execute(result)
-        if self.commit:
+        if self.step_type != "component" and self.commit:
             self.consumer.commit()
         self.metrics["timestamp_sent"] = datetime.datetime.now(
             datetime.timezone.utc
@@ -184,7 +178,7 @@ class GenericStep:
     def post_execute(self, result):
         pass
 
-    def _pre_produce(self, result):
+    def __pre_produce(self, result):
         self.logger.debug("Finished all processing. Begin message production")
         message_to_produce = self.pre_produce(result)
         return message_to_produce
@@ -193,7 +187,7 @@ class GenericStep:
     def pre_produce(self, result):
         pass
 
-    def _post_produce(self):
+    def __post_produce(self):
         self.logger.debug("Message produced. Begin post production")
         self.post_produce()
 
@@ -283,17 +277,17 @@ class GenericStep:
 
     def start(self):
         """Start running the step."""
-        self._pre_consume()
+        self.__pre_consume()
         for self.message in self.consumer.consume():
-            self._pre_execute()
+            self.__pre_execute()
             result = self.execute(self.message)
-            result = self._post_execute(result)
-            result = self._pre_produce(result)
+            result = self.__post_execute(result)
+            result = self.__pre_produce(result)
             self.producer.produce(result)
-            self._post_produce()
-        self._tear_down()
+            self.__post_produce()
+        self.__tear_down()
 
-    def _tear_down(self):
+    def __tear_down(self):
         self.logger.info(
             "Processing finished. No more messages. Begin tear down."
         )
@@ -302,4 +296,26 @@ class GenericStep:
         f.close()
 
     def tear_down(self):
+        pass
+
+
+class SimpleStep(GenericStep):
+    def __init__(self, config, **step_args):
+        super().__init__(config, step_args)
+        self.step_type = "simple"
+
+
+class ComponentStep(GenericStep):
+    def __init__(self, config, **step_args):
+        super().__init__(config, step_args)
+        self.step_type = "component"
+
+
+class CompositeStep(GenericStep):
+    def __init__(self, config, **step_args):
+        super().__init__(config, step_args)
+        self.step_type = "composite"
+
+    def execute(self, message):
+        # composite steps have different execution
         pass
