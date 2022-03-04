@@ -6,10 +6,9 @@
 LOGGING_DEBUG = True
 
 ## Consumer configuration
-CONSUMER_CONFIG = {}
+CONSUMER_CONFIG = {"CLASS": "apf.consumers.generic.GenericConsumer"}
 
 ## Step Configuration
 STEP_CONFIG = {
     "CONSUMER_CONFIG": CONSUMER_CONFIG,
-    "STEP_TYPE": "simple",
 }
