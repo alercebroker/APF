@@ -27,7 +27,7 @@ def cli():
 def validate_type(ctx, param, value):
     if value not in STEP_TYPES:
         raise click.BadParameter(
-            f"Step type can only be one of {types}, you provided {value}"
+            f"Step type can only be one of {STEP_TYPES}, you provided {value}"
         )
 
     return value
