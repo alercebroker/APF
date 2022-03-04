@@ -13,5 +13,4 @@ CONSUMER_CONFIG = {
 ## Step Configuration
 STEP_CONFIG = {
     "CONSUMER_CONFIG": CONSUMER_CONFIG,
-    "STEP_TYPE": "{{step_type}}",
 }

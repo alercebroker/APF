@@ -8,7 +8,7 @@ PACKAGE_PATH = os.path.abspath(os.path.join(SCRIPT_PATH, ".."))
 
 sys.path.append(PACKAGE_PATH)
 import settings
-from lifecycle_example01 import LifecycleExample01
+from composite import Composite
 
 level = logging.INFO
 if "LOGGING_DEBUG" in locals():
@@ -23,9 +23,9 @@ logging.basicConfig(
 
 
 def main():
-    step = LifecycleExample01(config=settings.STEP_CONFIG, level=level)
-    step.start()
+    step = Composite(config=settings.STEP_CONFIG, level=level)
     sys.path.remove(PACKAGE_PATH)
+    step.start()
 
 
 if __name__ == "__main__":

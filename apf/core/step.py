@@ -32,22 +32,15 @@ class GenericStep:
 
     def __init__(
         self,
-        config=None,
+        config={},
         level=logging.INFO,
         **step_args,
     ):
-        step_types = ["simple", "composite", "component"]
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.info(f"Creating {self.__class__.__name__}")
-        self.config = config or {}
-        self.consumer = self._get_consumer()(self.config["CONSUMER_CONFIG"])
-        producer_config = self.config.get("PRODUCER_CONFIG") or {}
-        self.producer = self._get_producer()(producer_config)
-        self.step_type = self.config.get("STEP_TYPE", "simple")
-        if self.step_type not in step_types:
-            raise Exception(
-                f"Step type can only be one of {step_types}. You provided {self.step_type}"
-            )
+        self.config = config
+        self.consumer = self._get_consumer()(self.consumer_config())
+        self.producer = self._get_producer()(self.producer_config())
         self.commit = self.config.get("COMMIT", True)
         self.metrics = {}
         self.metrics_sender = None
@@ -65,11 +58,16 @@ class GenericStep:
                 "EXTRA_METRICS", ["candid"]
             )
 
+    def consumer_config(self):
+        return self.config["CONSUMER_CONFIG"]
+
+    def producer_config(self):
+        return self.config.get("PRODUCER_CONFIG", {})
+
     def _get_consumer(self):
         if self.config.get("CONSUMER_CONFIG"):
-            consumer_config = self.config["CONSUMER_CONFIG"]
-            if "CLASS" in consumer_config:
-                Consumer = get_class(consumer_config["CLASS"])
+            if "CLASS" in self.consumer_config():
+                Consumer = get_class(self.consumer_config()["CLASS"])
             else:
                 Consumer = KafkaConsumer
             return Consumer
@@ -142,9 +140,10 @@ class GenericStep:
         self.metrics["timestamp_received"] = datetime.datetime.now(
             datetime.timezone.utc
         )
-        if self.step_type == "component" and self.commit:
+        if self.step_type == "component":
             self.consumer.commit()
-        self.pre_execute(self.message)
+        preprocessed = self.pre_execute(self.message)
+        return preprocessed or self.message
 
     @abstractmethod
     def pre_execute(self, message):
@@ -165,7 +164,7 @@ class GenericStep:
     def _post_execute(self, result):
         self.logger.debug("Processed message. Begin post processing")
         final_result = self.post_execute(result)
-        if self.commit:
+        if self.step_type != "component" and self.commit:
             self.consumer.commit()
         self.metrics["timestamp_sent"] = datetime.datetime.now(
             datetime.timezone.utc
@@ -182,7 +181,7 @@ class GenericStep:
 
     @abstractmethod
     def post_execute(self, result):
-        pass
+        return result
 
     def _pre_produce(self, result):
         self.logger.debug("Finished all processing. Begin message production")
@@ -191,7 +190,7 @@ class GenericStep:
 
     @abstractmethod
     def pre_produce(self, result):
-        pass
+        return result
 
     def _post_produce(self):
         self.logger.debug("Message produced. Begin post production")
@@ -285,8 +284,8 @@ class GenericStep:
         """Start running the step."""
         self._pre_consume()
         for self.message in self.consumer.consume():
-            self._pre_execute()
-            result = self.execute(self.message)
+            preprocessed_msg = self._pre_execute()
+            result = self.execute(preprocessed_msg)
             result = self._post_execute(result)
             result = self._pre_produce(result)
             self.producer.produce(result)
@@ -303,3 +302,75 @@ class GenericStep:
 
     def tear_down(self):
         pass
+
+
+class SimpleStep(GenericStep):
+    def __init__(self, config, **step_args):
+        super().__init__(config, step_args)
+        self.step_type = "simple"
+
+
+class ComponentStep(GenericStep):
+    def __init__(self, config, **step_args):
+        super().__init__(config, step_args)
+        self.step_type = "component"
+
+
+class CompositeStep(GenericStep):
+    def __init__(self, config, **step_args):
+        super().__init__(config, step_args)
+        self.step_type = "composite"
+
+    def consumer_config(self, scope="OUTER"):
+        return self.config["CONSUMER_CONFIG"][scope]
+
+    def producer_config(self, scope="OUTER"):
+        return self.config.get("PRODUCER_CONFIG", {}).get(scope, {})
+
+    def _get_consumer(self, scope="OUTER"):
+        if self.config.get("CONSUMER_CONFIG"):
+            consumer_config = self.config["CONSUMER_CONFIG"]
+            if "CLASS" in consumer_config[scope]:
+                Consumer = get_class(consumer_config[scope]["CLASS"])
+            else:
+                Consumer = KafkaConsumer
+            return Consumer
+        raise Exception("Could not find CONSUMER_CONFIG in the step config")
+
+    def _get_producer(self, scope="OUTER"):
+        if self.config.get("PRODUCER_CONFIG"):
+            producer_config = self.config["PRODUCER_CONFIG"]
+            if "CLASS" in producer_config[scope]:
+                Producer = get_class(producer_config[scope]["CLASS"])
+            else:
+                Producer = GenericProducer
+            return Producer
+        return GenericProducer
+
+    def _internal_produce(self, message):
+        internal_producer = self._get_producer(scope="INNER")(
+            self.producer_config(scope="INNER")
+        )
+
+        def msg_gen():
+            if isinstance(message, list):
+                for msg in message:
+                    yield msg
+            else:
+                yield message
+
+        for msg in msg_gen():
+            internal_producer.produce(message)
+
+    def _internal_consume(self):
+        internal_consumer = self._get_consumer(scope="INNER")(
+            self.consumer_config(scope="INNER")
+        )
+        message_list = []
+        for msg in internal_consumer.consume():
+            message_list.append(msg)
+        return message_list
+
+    def execute(self, message):
+        self._internal_produce(message)
+        return self._internal_consume()

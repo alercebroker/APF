@@ -1,9 +1,9 @@
-from apf.core.step import SimpleStep as Step
+from apf.core.step import ComponentStep as Step
 import logging
 
 
-class SimpleExample01(Step):
-    """SimpleExample01 Description
+class Component2(Step):
+    """Component2 Description
 
     Parameters
     ----------
@@ -18,8 +18,6 @@ class SimpleExample01(Step):
         super().__init__(config=config, level=level)
 
     def execute(self, message):
-        ################################
-        #   Here comes the Step Logic  #
-        ################################
-
-        pass
+        for k in message:
+            message[k] = int(message[k]) + 2
+        return message

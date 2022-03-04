@@ -2,10 +2,21 @@ import jinja2
 import os
 import apf
 import click
+from apf.core.step import (
+    SimpleStep,
+    ComponentStep,
+    CompositeStep,
+)
 
 HELPER_PATH = os.path.dirname(os.path.abspath(__file__))
 CORE_PATH = os.path.abspath(os.path.join(HELPER_PATH, ".."))
 TEMPLATE_PATH = os.path.abspath(os.path.join(CORE_PATH, "templates"))
+
+STEP_TYPES = {
+    "simple": SimpleStep,
+    "component": ComponentStep,
+    "composite": CompositeStep,
+}
 
 
 @click.group()
@@ -13,13 +24,18 @@ def cli():
     pass
 
 
-def _validate_steps(steps):
-    pass
+def validate_type(ctx, param, value):
+    if value not in STEP_TYPES:
+        raise click.BadParameter(
+            f"Step type can only be one of {STEP_TYPES}, you provided {value}"
+        )
+
+    return value
 
 
 @cli.command()
 @click.argument("name")
-@click.option("--step-type", default="simple")
+@click.option("--step-type", default="simple", callback=validate_type)
 def new_step(name, step_type):
     import re
 
@@ -52,7 +68,13 @@ def new_step(name, step_type):
     with open(os.path.join(output_path, package_name, "step.py"), "w") as f:
 
         class_name = "".join([word.capitalize() for word in cleaned_name])
-        f.write(step_template.render(step_name=class_name))
+        step_class = STEP_TYPES[step_type].__name__
+        f.write(
+            step_template.render(
+                step_name=class_name,
+                step_class=step_class,
+            )
+        )
 
     dockerfile_template = route.get_template("step/Dockerfile")
     with open(os.path.join(output_path, "Dockerfile"), "w") as f:
@@ -62,7 +84,8 @@ def new_step(name, step_type):
     with open(os.path.join(output_path, "scripts", "run_step.py"), "w") as f:
         f.write(
             run_script_template.render(
-                package_name=package_name, class_name=class_name
+                package_name=package_name,
+                class_name=class_name,
             )
         )
 
