@@ -2,6 +2,7 @@ from apf.consumers import GenericConsumer
 
 import unittest
 
+
 class GenericConsumerTest(unittest.TestCase):
     component = GenericConsumer
     params = {}

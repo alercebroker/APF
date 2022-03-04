@@ -112,10 +112,12 @@ class KafkaProducer(GenericProducer):
             )
         elif self.config.get("TOPIC_STRATEGY"):
             self.dynamic_topic = True
-            module_name, class_name = self.config["TOPIC_STRATEGY"]["CLASS"].rsplit(
-                ".", 1
+            module_name, class_name = self.config["TOPIC_STRATEGY"][
+                "CLASS"
+            ].rsplit(".", 1)
+            TopicStrategy = getattr(
+                importlib.import_module(module_name), class_name
             )
-            TopicStrategy = getattr(importlib.import_module(module_name), class_name)
             self.topic_strategy = TopicStrategy(
                 **self.config["TOPIC_STRATEGY"]["PARAMS"]
             )
@@ -136,7 +138,9 @@ class KafkaProducer(GenericProducer):
                 self.producer.poll(0)
             except BufferError as e:
                 self.logger.info(f"Error producing message: {e}")
-                self.logger.info("Calling poll to empty queue and producing again")
+                self.logger.info(
+                    "Calling poll to empty queue and producing again"
+                )
                 self.producer.flush()
                 self.producer.produce(topic, value=message, **kwargs)
 

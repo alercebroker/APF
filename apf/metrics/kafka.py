@@ -25,6 +25,7 @@ class KafkaMetricsProducer(GenericMetricsProducer):
         An apf producer, by default is :class:`apf.producer.KafkaProducer`.
 
     """
+
     def __init__(self, config, producer=None):
         super().__init__(config)
         self.config = config
@@ -32,7 +33,9 @@ class KafkaMetricsProducer(GenericMetricsProducer):
             self.producer = producer
         else:
             self.producer = Producer(self.config["PARAMS"])
-        self.time_encoder = self.config.get("TIME_ENCODER_CLASS", DateTimeEncoder)
+        self.time_encoder = self.config.get(
+            "TIME_ENCODER_CLASS", DateTimeEncoder
+        )
         self.dynamic_topic = False
         if self.config.get("TOPIC"):
             self.logger.info(f'Producing metrics to {self.config["TOPIC"]}')
@@ -57,7 +60,9 @@ class KafkaMetricsProducer(GenericMetricsProducer):
                 self.producer.produce(topic, metrics)
             except BufferError as e:
                 self.logger.info(f"Error producing metrics: {e}")
-                self.logger.info("Calling poll to empty queue and producing again")
+                self.logger.info(
+                    "Calling poll to empty queue and producing again"
+                )
                 self.producer.poll(1)
                 self.producer.produce(topic, metrics)
 

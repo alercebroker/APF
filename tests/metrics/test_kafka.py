@@ -55,7 +55,9 @@ class KafkaMetricsProducerTest(unittest.TestCase):
         date = datetime.datetime(2020, 9, 18)
         metrics = {"timestamp_received": date, "timestamp_sent": date}
         parsed_date = b'{"timestamp_received": "2020-09-18T00:00:00", "timestamp_sent": "2020-09-18T00:00:00"}'
-        producer = KafkaMetricsProducer(self.config, producer=self.mock_producer)
+        producer = KafkaMetricsProducer(
+            self.config, producer=self.mock_producer
+        )
         producer.send_metrics(metrics)
         self.mock_producer.produce.assert_called_with("test", parsed_date)
 
@@ -79,7 +81,9 @@ class KafkaMetricsProducerTest(unittest.TestCase):
             },
             "SCHEMA": self.schema,
         }
-        producer = KafkaMetricsProducer(self.config, producer=self.mock_producer)
+        producer = KafkaMetricsProducer(
+            self.config, producer=self.mock_producer
+        )
         producer.send_metrics(metrics)
         topic = "test" + self.now.strftime("%Y%m%d")
         self.mock_producer.produce.assert_called_with(topic, parsed_date)

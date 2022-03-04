@@ -77,7 +77,9 @@ class DailyTopicStrategy(GenericTopicStrategy):
             now += datetime.timedelta(days=1)
             date = now.strftime(self.date_format)
             for topic_format in self.topic_formats:
-                topic = Topic(topic_format % date, now, topic_format, self.date_format)
+                topic = Topic(
+                    topic_format % date, now, topic_format, self.date_format
+                )
                 if not [x for x in self.topics if x.name == topic.name]:
                     self.topics.append(topic)
 
