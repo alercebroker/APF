@@ -1,9 +1,9 @@
+from pathlib import Path
+import importlib.util
 from behave import when, then
 from click.testing import CliRunner
 from apf.core.management.helpers import cli
 from apf.core.step import SimpleStep, ComponentStep, CompositeStep
-from pathlib import Path
-import importlib.util
 
 
 @when("user calls the new-step command")
@@ -50,8 +50,6 @@ def step_check_step_type(context, step_type):
         "component": ComponentStep,
         "simple": SimpleStep,
     }
-    with open(step_path / "example/step.py") as f:
-        print(f.read())
     assert issubclass(
         step.Example,
         step_map[step_type],
@@ -61,4 +59,3 @@ def step_check_step_type(context, step_type):
 @then("step can't be created")
 def step_step_not_created(context):
     assert context.runner_result.exit_code != 0
-    print(context.runner_result)
