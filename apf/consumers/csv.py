@@ -31,14 +31,22 @@ class CSVConsumer(GenericConsumer):
         (reference `here <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html>`_)
 
     """
+
     def __init__(self, config):
         super().__init__(config)
-        path = self.config.get("FILE_PATH", None)
-        if path is None:
+        self.path = self.config.get("FILE_PATH", None)
+        if self.path is None:
             raise Exception("FILE_PATH variable not set")
 
     def consume(self):
-        df = pd.read_csv(self.config["FILE_PATH"], **self.config.get("OTHER_ARGS", {}))
-        self.len = len(df)
-        for index, row in df.iterrows():
-            yield row.to_dict()
+        paths = []
+        if isinstance(self.path, list):
+            for path in self.path:
+                paths.append(path)
+        else:
+            paths.append(self.path)
+        for path in paths:
+            df = pd.read_csv(path, **self.config.get("OTHER_ARGS", {}))
+            self.len = len(df)
+            for index, row in df.iterrows():
+                yield row.to_dict()
