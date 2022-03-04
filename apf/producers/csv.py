@@ -17,13 +17,15 @@ class CSVProducer(GenericProducer):
 
     def __init__(self, config):
         super().__init__(config=config)
+        self.first_line = True
 
     def produce(self, message=None, **kwargs):
-        """Produce Message to a CSV File.
-
-        Doesn't add the header
-        """
+        """Produce Message to a CSV File."""
         serialized_message = json_normalize(message)
         serialized_message.to_csv(
-            self.config["FILE_PATH"], mode="a+", index=False, header=False
+            self.config["FILE_PATH"],
+            mode="a+",
+            index=False,
+            header=self.first_line,
         )
+        self.first_line = False
