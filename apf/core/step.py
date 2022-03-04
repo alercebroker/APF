@@ -39,9 +39,8 @@ class GenericStep:
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.info(f"Creating {self.__class__.__name__}")
         self.config = config
-        self.consumer = self._get_consumer()(self.config["CONSUMER_CONFIG"])
-        producer_config = self.config.get("PRODUCER_CONFIG") or {}
-        self.producer = self._get_producer()(producer_config)
+        self.consumer = self._get_consumer()(self.consumer_config())
+        self.producer = self._get_producer()(self.producer_config())
         self.commit = self.config.get("COMMIT", True)
         self.metrics = {}
         self.metrics_sender = None
@@ -59,11 +58,16 @@ class GenericStep:
                 "EXTRA_METRICS", ["candid"]
             )
 
+    def consumer_config(self):
+        return self.config["CONSUMER_CONFIG"]
+
+    def producer_config(self):
+        return self.config.get("PRODUCER_CONFIG", {})
+
     def _get_consumer(self):
         if self.config.get("CONSUMER_CONFIG"):
-            consumer_config = self.config["CONSUMER_CONFIG"]
-            if "CLASS" in consumer_config:
-                Consumer = get_class(consumer_config["CLASS"])
+            if "CLASS" in self.consumer_config():
+                Consumer = get_class(self.consumer_config()["CLASS"])
             else:
                 Consumer = KafkaConsumer
             return Consumer
@@ -177,7 +181,7 @@ class GenericStep:
 
     @abstractmethod
     def post_execute(self, result):
-        pass
+        return result
 
     def _pre_produce(self, result):
         self.logger.debug("Finished all processing. Begin message production")
@@ -186,7 +190,7 @@ class GenericStep:
 
     @abstractmethod
     def pre_produce(self, result):
-        pass
+        return result
 
     def _post_produce(self):
         self.logger.debug("Message produced. Begin post production")
@@ -317,11 +321,17 @@ class CompositeStep(GenericStep):
         super().__init__(config, step_args)
         self.step_type = "composite"
 
+    def consumer_config(self, scope="OUTER"):
+        return self.config["CONSUMER_CONFIG"][scope]
+
+    def producer_config(self, scope="OUTER"):
+        return self.config.get("PRODUCER_CONFIG", {}).get(scope, {})
+
     def _get_consumer(self, scope="OUTER"):
         if self.config.get("CONSUMER_CONFIG"):
             consumer_config = self.config["CONSUMER_CONFIG"]
             if "CLASS" in consumer_config[scope]:
-                Consumer = get_class(consumer_config["CLASS"])
+                Consumer = get_class(consumer_config[scope]["CLASS"])
             else:
                 Consumer = KafkaConsumer
             return Consumer
@@ -331,16 +341,16 @@ class CompositeStep(GenericStep):
         if self.config.get("PRODUCER_CONFIG"):
             producer_config = self.config["PRODUCER_CONFIG"]
             if "CLASS" in producer_config[scope]:
-                Consumer = get_class(producer_config["CLASS"])
+                Producer = get_class(producer_config[scope]["CLASS"])
             else:
-                Consumer = GenericProducer
-            return Consumer
+                Producer = GenericProducer
+            return Producer
         return GenericProducer
 
     def _internal_produce(self, message):
-        internal_producer = self._get_producer(
-            self.config["PRODUCER_CONFIG"], scope="INNER"
-        )(self.config["PRODUCER_CONFIG"]["INNER"])
+        internal_producer = self._get_producer(scope="INNER")(
+            self.producer_config(scope="INNER")
+        )
 
         def msg_gen():
             if isinstance(message, list):
@@ -353,9 +363,9 @@ class CompositeStep(GenericStep):
             internal_producer.produce(message)
 
     def _internal_consume(self):
-        internal_consumer = self._get_consumer(
-            self.config["CONSUMER_CONFIG"], scope="INNER"
-        )(self.config["CONSUMER_CONFIG"]["INNER"])
+        internal_consumer = self._get_consumer(scope="INNER")(
+            self.consumer_config(scope="INNER")
+        )
         message_list = []
         for msg in internal_consumer.consume():
             message_list.append(msg)
