@@ -1,14 +1,14 @@
-from behave import fixture, use_fixture
 import tempfile
 from pathlib import Path
 import sys
+from behave import fixture, use_fixture
 
 
 @fixture(name="fixture.tmpdir")
 def tmp_dir(context):
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        context.tmp_dir = tmp_dir
-        yield tmp_dir
+    with tempfile.TemporaryDirectory() as tmp:
+        context.tmp_dir = tmp
+        yield tmp
 
 
 def before_tag(context, tag):
@@ -16,13 +16,13 @@ def before_tag(context, tag):
         use_fixture(tmp_dir, context)
 
 
-def before_scenario(context, scenario):
+def before_scenario(_context, _scenario):
     p = Path("__SUCCESS__")
     if p.is_file():
         p.unlink()
 
 
-def after_scenario(context, scenario):
+def after_scenario(context, _scenario):
     if "settings" in sys.modules.keys():
         del sys.modules["settings"]
     if context.step_name in sys.modules.keys():
