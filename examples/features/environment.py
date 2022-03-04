@@ -25,7 +25,3 @@ def before_scenario(_context, _scenario):
 def after_scenario(context, _scenario):
     if "settings" in sys.modules.keys():
         del sys.modules["settings"]
-    if context.step_name in sys.modules.keys():
-        del sys.modules[context.step_name]
-    if context.step_name + ".step" in sys.modules.keys():
-        del sys.modules[context.step_name + ".step"]
