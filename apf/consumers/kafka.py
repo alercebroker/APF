@@ -254,3 +254,14 @@ class KafkaConsumer(GenericConsumer):
                 # Rasing the same error
                 if retries == self.max_retries:
                     raise e
+
+
+class KafkaSchemalessConsumer(KafkaConsumer):
+    def __init__(self, config):
+        super(KafkaSchemalessConsumer, self).__init__(config)
+        self.schema = fastavro.schema.load_schema(config["SCHEMA_PATH"])
+
+    def _deserialize_message(self, message):
+        bytes_io = io.BytesIO(message.value())
+        data = fastavro.schemaless_reader(bytes_io, self.schema)
+        return data
