@@ -257,11 +257,15 @@ class KafkaConsumer(GenericConsumer):
 
 
 class KafkaSchemalessConsumer(KafkaConsumer):
-    def __init__(self, config):
+    def __init__(self, config, timestamp=False):
         super(KafkaSchemalessConsumer, self).__init__(config)
         self.schema = fastavro.schema.load_schema(config["SCHEMA_PATH"])
+        self.timestamp = timestamp
 
     def _deserialize_message(self, message):
         bytes_io = io.BytesIO(message.value())
         data = fastavro.schemaless_reader(bytes_io, self.schema)
+        if self.timestamp:
+            timestamp = message.timestamp()
+            data["_timestamp"] = timestamp
         return data
