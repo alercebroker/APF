@@ -151,6 +151,7 @@ class KafkaConsumer(GenericConsumer):
             self.consumer.subscribe(self.topics)
         else:
             raise Exception("No topics o topic strategy set. ")
+        self.messages = []
 
     def __del__(self):
         self.logger.info("Shutting down Consumer")
