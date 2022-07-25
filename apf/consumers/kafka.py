@@ -246,6 +246,9 @@ class KafkaConsumer(GenericConsumer):
                     yield deserialized[0]
                 else:
                     yield deserialized
+            # Delete saved messages from local memory
+            messages = None
+            self.messages = None
 
     def commit(self):
         retries = 0
