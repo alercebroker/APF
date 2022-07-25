@@ -6,6 +6,7 @@ import io
 import importlib
 import json
 
+
 class KafkaConsumer(GenericConsumer):
     """Consume from a Kafka Topic.
 
@@ -135,10 +136,12 @@ class KafkaConsumer(GenericConsumer):
             self.consumer.subscribe(self.config["TOPICS"])
         elif self.config.get("TOPIC_STRATEGY"):
             self.dynamic_topic = True
-            module_name, class_name = self.config["TOPIC_STRATEGY"]["CLASS"].rsplit(
-                ".", 1
+            module_name, class_name = self.config["TOPIC_STRATEGY"][
+                "CLASS"
+            ].rsplit(".", 1)
+            TopicStrategy = getattr(
+                importlib.import_module(module_name), class_name
             )
-            TopicStrategy = getattr(importlib.import_module(module_name), class_name)
             self.topic_strategy = TopicStrategy(
                 **self.config["TOPIC_STRATEGY"]["PARAMS"]
             )
@@ -216,7 +219,9 @@ class KafkaConsumer(GenericConsumer):
                 if self._check_topics():
                     self._subscribe_to_new_topics()
 
-            messages = self.consumer.consume(num_messages=num_messages, timeout=timeout)
+            messages = self.consumer.consume(
+                num_messages=num_messages, timeout=timeout
+            )
             if len(messages) == 0:
                 continue
 
@@ -226,7 +231,9 @@ class KafkaConsumer(GenericConsumer):
                     if message.error().name() == "_PARTITION_EOF":
                         self.logger.info("PARTITION_EOF: No more messages")
                         return
-                    self.logger.exception(f"Error in kafka stream: {message.error()}")
+                    self.logger.exception(
+                        f"Error in kafka stream: {message.error()}"
+                    )
                     continue
                 else:
                     message = self._deserialize_message(message)
