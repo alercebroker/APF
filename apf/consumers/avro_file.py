@@ -23,6 +23,7 @@ class AVROFileConsumer(GenericConsumer):
         AVRO files Directory path location
 
     """
+
     def __init__(self, config):
         super().__init__(config)
 
@@ -38,8 +39,10 @@ class AVROFileConsumer(GenericConsumer):
             num_messages = 1
 
         msgs = []
+        left = len(files)
         for file in files:
             self.logger.debug(f"Reading File: {file}")
+            left = left - 1
             with open(file, "rb") as f:
                 avro_reader = fastavro.reader(f)
                 data = avro_reader.next()
@@ -51,10 +54,15 @@ class AVROFileConsumer(GenericConsumer):
                     return_msgs = msgs.copy()
                     msgs = []
                     yield return_msgs
+                else:
+                    if left + len(msgs) < num_messages:
+                        return_msgs = msgs.copy()
+                        msgs = []
+                        yield return_msgs
 
 
 class AVROInfiniteConsumer(GenericConsumer):
-    """ Consume from a Infinite AVRO Files Directory.
+    """Consume from a Infinite AVRO Files Directory.
 
     **Example:**
 
@@ -70,6 +78,7 @@ class AVROInfiniteConsumer(GenericConsumer):
     DIRECTORY_PATH: path
         AVRO files Directory path location
     """
+
     def __init__(self, config):
         super().__init__(config)
 
