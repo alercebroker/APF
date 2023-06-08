@@ -8,9 +8,9 @@ import datetime
 import os
 
 
-def consume(num_messages=1):
-    messages = [[MessageMock(False)] * num_messages]
-    messages.append([MessageMock(True)])
+def consume(num_messages=1, message_mock=MessageMock):
+    messages = [[message_mock(False)] * num_messages]
+    messages.append([message_mock(True)])
     return messages
 
 @mock.patch("apf.consumers.kafka.Consumer")
@@ -225,3 +225,21 @@ class TestKafkaSchemalessConsumer(unittest.TestCase):
 
         with self.assertRaises(Exception):
             consumer._deserialize_message(schemaless_avro)
+
+    @mock.patch("apf.consumers.kafka.Consumer")
+    def test_batch_consume(self, mock_consumer):
+        params = {
+            "TOPICS": ["apf_test"],
+            "PARAMS": {
+                "bootstrap.servers": "127.0.0.1:9092",
+                "group.id": "apf_test",
+            },
+            "SCHEMA_PATH": self.SCHEMALESS_CONSUMER_SCHEMA_PATH
+        }
+        component = KafkaSchemalessConsumer(params)
+        mock_consumer().consume.side_effect = consume(num_messages=9, message_mock=SchemalessMessageMock)
+        for msj in component.consume(num_messages=10, timeout=5):
+            self.assertIsInstance(msj, list)
+            # should be equal to available messages even if num_messages is higher
+            self.assertEqual(len(msj), 9)
+            break
